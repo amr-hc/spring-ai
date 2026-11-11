@@ -1,4 +1,3 @@
-# Amrai
 
 ## Accessing the H2 Console
 
