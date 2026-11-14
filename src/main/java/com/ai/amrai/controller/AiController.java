@@ -10,10 +10,14 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.Resource;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
@@ -102,6 +106,16 @@ public class AiController {
 
 
          
+    }
+
+    @PostMapping("/rag/load-data")
+    public String loadDataToDatabase(@RequestBody List<String> data) {
+        if (data == null || data.isEmpty() || data.stream().anyMatch(text -> text == null || text.isBlank())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Data must contain non-blank strings");
+        }
+        List<Document> documents = data.stream().map(Document::new).toList();
+        vectorStore.add(documents);
+        return "Data loaded successfully";
     }
 
 }
