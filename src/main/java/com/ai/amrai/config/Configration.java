@@ -18,7 +18,7 @@ public class Configration {
     @Bean
     public ChatClient getChatClient(
             ChatClient.Builder chatClientBuilder, ChatMemory chatMemory) {
-        return chatClientBuilder
+        return chatClientBuilder.clone()
                 .defaultSystem(systemPrompt)
                 .defaultAdvisors(
                     new SimpleLoggerAdvisor(),

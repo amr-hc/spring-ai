@@ -6,6 +6,7 @@ import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.Resource;
@@ -28,10 +29,14 @@ public class AiController {
     private Resource ragPrompt;
 
     private final ChatClient chatClient;
+    private final ChatClient webSearchChatClient;
     private final VectorStore vectorStore;
 
-    public AiController(ChatClient chatClient, VectorStore vectorStore) {
+    public AiController(@Qualifier("getChatClient") ChatClient chatClient,
+                        @Qualifier("webSearchRagChatClient") ChatClient webSearchChatClient,
+                        VectorStore vectorStore) {
         this.chatClient = chatClient;
+        this.webSearchChatClient = webSearchChatClient;
         this.vectorStore = vectorStore;
     }
 
@@ -67,6 +72,15 @@ public class AiController {
                         >() {}) ;
     }
 
+
+    @GetMapping("/web-search-chat")
+    public Flux<String> webSearchChat(@RequestParam("message") String message,
+                                      @RequestParam("username") String username) {
+        return webSearchChatClient.prompt()
+                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, username))
+                .user(message)
+                .stream().content();
+    }
 
     @GetMapping("/chat-rag")
     public Flux<String> chatRag(@RequestParam("message") String message,
