@@ -4,6 +4,8 @@ import com.ai.amrai.dto.country;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.document.Document;
+import org.springframework.ai.reader.pdf.PagePdfDocumentReader;
+import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -11,16 +13,20 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -116,6 +122,37 @@ public class AiController {
         List<Document> documents = data.stream().map(Document::new).toList();
         vectorStore.add(documents);
         return "Data loaded successfully";
+    }
+
+    @PostMapping(value = "/rag/upload-pdf", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Map<String, Object> uploadPdf(@RequestPart("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "PDF file must not be empty");
+        }
+
+        List<Document> pages;
+        try {
+            pages = new PagePdfDocumentReader(file.getResource()).read();
+        } catch (RuntimeException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Unable to read PDF. Upload a valid, unencrypted PDF", exception);
+        }
+
+        List<Document> textPages = pages.stream()
+                .filter(page -> page.getText() != null && !page.getText().isBlank())
+                .toList();
+        if (textPages.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "PDF contains no extractable text. Scanned PDFs require OCR");
+        }
+
+        List<Document> chunks = TokenTextSplitter.builder().build().apply(textPages);
+        if (chunks.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "PDF contains no text to store");
+        }
+
+        vectorStore.add(chunks);
+        return Map.of("message", "PDF loaded successfully", "chunks", chunks.size());
     }
 
 }
