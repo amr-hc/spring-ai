@@ -1,6 +1,7 @@
 package com.ai.amrai.controller;
 
 import com.ai.amrai.dto.country;
+import org.springframework.ai.chat.cache.semantic.SemanticCacheAdvisor;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.document.Document;
@@ -41,13 +42,16 @@ public class AiController {
     private final ChatClient chatClient;
     private final ChatClient webSearchChatClient;
     private final VectorStore vectorStore;
+    private final SemanticCacheAdvisor semanticCacheAdvisor;
 
     public AiController(@Qualifier("getChatClient") ChatClient chatClient,
                         @Qualifier("webSearchRagChatClient") ChatClient webSearchChatClient,
-                        VectorStore vectorStore) {
+                        VectorStore vectorStore,
+                        SemanticCacheAdvisor semanticCacheAdvisor) {
         this.chatClient = chatClient;
         this.webSearchChatClient = webSearchChatClient;
         this.vectorStore = vectorStore;
+        this.semanticCacheAdvisor = semanticCacheAdvisor;
     }
 
     @GetMapping
@@ -65,6 +69,7 @@ public class AiController {
                                 @RequestParam("username") String username
     ){
         return this.chatClient.prompt()
+                .advisors(semanticCacheAdvisor)
                 .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, username))
 
                 .user(message)
