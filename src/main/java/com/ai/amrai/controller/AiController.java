@@ -5,6 +5,9 @@ import org.springframework.ai.chat.cache.semantic.SemanticCacheAdvisor;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.document.Document;
+import org.springframework.ai.rag.Query;
+import org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor;
+import org.springframework.ai.rag.preretrieval.query.transformation.TranslationQueryTransformer;
 import org.springframework.ai.reader.pdf.PagePdfDocumentReader;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.SearchRequest;
@@ -43,15 +46,21 @@ public class AiController {
     private final ChatClient webSearchChatClient;
     private final VectorStore vectorStore;
     private final SemanticCacheAdvisor semanticCacheAdvisor;
+    private final TranslationQueryTransformer englishQueryTransformer;
+    private final RetrievalAugmentationAdvisor retrievalAugmentationAdvisor;
 
     public AiController(@Qualifier("getChatClient") ChatClient chatClient,
                         @Qualifier("webSearchRagChatClient") ChatClient webSearchChatClient,
                         VectorStore vectorStore,
-                        SemanticCacheAdvisor semanticCacheAdvisor) {
+                        SemanticCacheAdvisor semanticCacheAdvisor,
+                        TranslationQueryTransformer englishQueryTransformer,
+                        RetrievalAugmentationAdvisor retrievalAugmentationAdvisor) {
         this.chatClient = chatClient;
         this.webSearchChatClient = webSearchChatClient;
         this.vectorStore = vectorStore;
         this.semanticCacheAdvisor = semanticCacheAdvisor;
+        this.englishQueryTransformer = englishQueryTransformer;
+        this.retrievalAugmentationAdvisor = retrievalAugmentationAdvisor;
     }
 
     @GetMapping
@@ -100,23 +109,32 @@ public class AiController {
     @GetMapping("/chat-rag")
     public Flux<String> chatRag(@RequestParam("message") String message,
                        @RequestParam("username") String username){
-        SearchRequest searchRequest = SearchRequest.builder().query(message).topK(3).similarityThreshold(0.5).build();
-        List<Document> similarsDocs = vectorStore.similaritySearch(searchRequest);
-        String similarStrings = similarsDocs.stream().map(Document::getText)
+        String englishQuery = englishQueryTransformer.transform(new Query(message)).text();
+        SearchRequest searchRequest = SearchRequest.builder()
+                .query(englishQuery)
+                .topK(3)
+                .similarityThreshold(0.5)
+                .build();
+        List<Document> similarDocuments = vectorStore.similaritySearch(searchRequest);
+        String documents = similarDocuments.stream()
+                .map(Document::getText)
                 .collect(Collectors.joining(System.lineSeparator()));
 
-         return this.chatClient.prompt()
-                 .system(
-                         promptSystemSpec -> promptSystemSpec.text(ragPrompt)
-                                 .param("documents", similarStrings)
-                 )
-
+        return this.chatClient.prompt()
+                .system(system -> system.text(ragPrompt).param("documents", documents))
                 .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, username))
                 .user(message)
                 .stream().content();
+    }
 
-
-         
+    @GetMapping("/chat-rag-advisor")
+    public Flux<String> chatRagAdvisor(@RequestParam("message") String message,
+                                      @RequestParam("username") String username) {
+        return this.chatClient.prompt()
+                .advisors(retrievalAugmentationAdvisor)
+                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, username))
+                .user(message)
+                .stream().content();
     }
 
     @PostMapping("/rag/load-data")
