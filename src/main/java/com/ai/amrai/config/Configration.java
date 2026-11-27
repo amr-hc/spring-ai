@@ -1,5 +1,6 @@
 package com.ai.amrai.config;
 
+import com.ai.amrai.tool.FunctionTool;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
@@ -43,9 +44,10 @@ public class Configration {
 
     @Bean
     public ChatClient getChatClient(
-            ChatClient.Builder chatClientBuilder, ChatMemory chatMemory) {
+            ChatClient.Builder chatClientBuilder, ChatMemory chatMemory, FunctionTool functionTool) {
         return chatClientBuilder.clone()
                 .defaultSystem(systemPrompt)
+                .defaultTools(functionTool)
                 .defaultAdvisors(
                     new SimpleLoggerAdvisor(),
                     MessageChatMemoryAdvisor.builder(chatMemory).build()
