@@ -1,3 +1,15 @@
+## Semantic cache for streaming chat
+
+`/api/stream` uses `SemanticCacheAdvisor` with Qdrant storage. Cached answers
+are kept in the `amr-semantic-cache` collection, separate from RAG documents.
+The similarity threshold defaults to `0.8`. Override these with
+`app.semantic-cache.collection-name` and `app.semantic-cache.similarity-threshold`.
+
+Start Qdrant with `docker compose up -d qdrant`, then restart the application.
+Redis is no longer required. The `spring-ai-redis-semantic-cache` dependency
+remains because Spring AI 2.0.1 packages the advisor in that module; the cache
+is configured with a `QdrantVectorStore` instead of a Redis client.
+
 ## Web-search RAG
 
 The lecture's web-search flow is available at `/api/web-search-chat`.
