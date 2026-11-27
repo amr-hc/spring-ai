@@ -1,5 +1,6 @@
 package com.ai.amrai.config;
 
+import com.ai.amrai.service.TicketService;
 import com.ai.amrai.tool.FunctionTool;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
@@ -45,14 +46,27 @@ public class Configration {
     @Bean
     public ChatClient getChatClient(
             ChatClient.Builder chatClientBuilder, ChatMemory chatMemory, FunctionTool functionTool) {
+        return chatBuilder(chatClientBuilder, chatMemory)
+                .defaultTools(functionTool)
+                .build();
+    }
+
+    @Bean
+    public ChatClient ticketChatClient(
+            ChatClient.Builder chatClientBuilder, ChatMemory chatMemory,
+            FunctionTool functionTool, TicketService ticketService) {
+        return chatBuilder(chatClientBuilder, chatMemory)
+                .defaultTools(functionTool, ticketService)
+                .build();
+    }
+
+    private ChatClient.Builder chatBuilder(ChatClient.Builder chatClientBuilder, ChatMemory chatMemory) {
         return chatClientBuilder.clone()
                 .defaultSystem(systemPrompt)
-                .defaultTools(functionTool)
                 .defaultAdvisors(
                     new SimpleLoggerAdvisor(),
                     MessageChatMemoryAdvisor.builder(chatMemory).build()
-                )
-                .build();
+                );
     }
 
     @Bean

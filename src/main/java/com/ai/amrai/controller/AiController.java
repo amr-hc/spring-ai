@@ -43,6 +43,7 @@ public class AiController {
     private Resource ragPrompt;
 
     private final ChatClient chatClient;
+    private final ChatClient ticketChatClient;
     private final ChatClient webSearchChatClient;
     private final VectorStore vectorStore;
     private final SemanticCacheAdvisor semanticCacheAdvisor;
@@ -50,12 +51,14 @@ public class AiController {
     private final RetrievalAugmentationAdvisor retrievalAugmentationAdvisor;
 
     public AiController(@Qualifier("getChatClient") ChatClient chatClient,
+                        @Qualifier("ticketChatClient") ChatClient ticketChatClient,
                         @Qualifier("webSearchRagChatClient") ChatClient webSearchChatClient,
                         VectorStore vectorStore,
                         SemanticCacheAdvisor semanticCacheAdvisor,
                         TranslationQueryTransformer englishQueryTransformer,
                         RetrievalAugmentationAdvisor retrievalAugmentationAdvisor) {
         this.chatClient = chatClient;
+        this.ticketChatClient = ticketChatClient;
         this.webSearchChatClient = webSearchChatClient;
         this.vectorStore = vectorStore;
         this.semanticCacheAdvisor = semanticCacheAdvisor;
@@ -80,7 +83,16 @@ public class AiController {
         return this.chatClient.prompt()
                 .advisors(semanticCacheAdvisor)
                 .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, username))
+                .user(message)
+                .stream().content();
+    }
 
+    @GetMapping("/stream/tickets")
+    public Flux<String> ticketMessage(@RequestParam("message") String message,
+                                      @RequestParam("username") String username) {
+        return ticketChatClient.prompt()
+                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, "tickets:" + username))
+                .toolContext(Map.of("username", username))
                 .user(message)
                 .stream().content();
     }

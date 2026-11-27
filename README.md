@@ -1,7 +1,9 @@
 ## Semantic cache for streaming chat
 
-`/api/stream` uses `SemanticCacheAdvisor` with Qdrant storage. Cached answers
-are kept in the `amr-semantic-cache` collection, separate from RAG documents.
+`/api/stream` uses the semantic cache for general chat. The configured cache
+uses the `amr-semantic-cache` collection, separate from RAG documents.
+Use `/api/stream/tickets` with `message` and `username` to open support tickets
+through chat. That endpoint bypasses the cache and has its own conversation history.
 The similarity threshold defaults to `0.8`. Override these with
 `app.semantic-cache.collection-name` and `app.semantic-cache.similarity-threshold`.
 
